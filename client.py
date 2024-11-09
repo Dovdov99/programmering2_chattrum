@@ -66,7 +66,7 @@ def write_message():
         
 
 
-choose_nickname()
+choose_nickname() #Anropar choose_nickname funktionen.
 receive_message_thread = threading.Thread(target=receive_message) #Skapar en tråd för receive_message funktionen.
 write_message_thread = threading.Thread(target=write_message) #Skapar en tråd för write_message funktionen.
 receive_message_thread.start() #Startar tråden.
