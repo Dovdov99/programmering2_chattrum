@@ -71,3 +71,7 @@ receive_message_thread = threading.Thread(target=receive_message) #Skapar en tr�
 write_message_thread = threading.Thread(target=write_message) #Skapar en tråd för write_message funktionen.
 receive_message_thread.start() #Startar tråden.
 write_message_thread.start() #Startar tråden.
+
+# Vänta på att trådarna ska avslutas
+receive_message_thread.join()
+write_message_thread.join()

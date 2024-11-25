@@ -24,25 +24,38 @@ PORT = 1999 #Portnummer
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #Skapar en server socket och tilldelar den till en variabel
 server_socket.bind((HOST, PORT)) #Binder server socketen jag skapat till en IP-adress samt en port.
 server_socket.listen() #Startar lyssning av servern.
-print("Server is listening for a connection...")
+print("Servern lyssnar efter anslutningar...")
 
 client_list: list = [] #Skapar en tom lista där alla klienter som ansluter hamnar.
 nickname_list: list = [] #Skapar en tom lista där alla användarnamn som klienterna väljer hamnar.
 
+def accept_clients():
+  """
+  Denna funktion accepterar alla klienter som ansluter till servern och skapar en tråd för varje klient.
+  Denna funktion kommer loopa oändligt.
+  """
+  while True:
+        try:
+            client_socket, client_address = server_socket.accept()
+            print(f"Ny anslutning från {client_address}")
+           
+            handle_client_thread = threading.Thread(target=handle_client, args=(client_socket, client_address))
+            handle_client_thread.start()
 
-def handle_client(): 
+        except Exception as e:
+            print(f"Fel vid anslutning av klient {e}")
+
+
+
+def handle_client(client_socket, client_address): 
     """
-    Denna funktion börjar med att acceptera alla klienter som ansluter till servern för att sedan lägga till dem i klientlistan. 
-    Sedan så kommer det användarnamn klienten väljer läggas till i nickname listan.
+    Denna funktion tar emot användarnamnet som användaren skickar in för att sedan lägga till dem i klient samt nickname listan.
     Två vilkor finns för att kontrollera vad som ska skrivas ut beroende på hur många klienter som är anslutna.
-    Sist så skapar vi en tråd för varje klient.
-    Denna funktion kommer loopa oändligt.
+    Sist så skapar vi en tråd som är ansvarig för att ta emot och bearbeta meddelanden från varje klient.
     """
-    while True:
-        client_socket, client_address = server_socket.accept()
-        client_list.append(client_socket)
-
+    try:
         nickname = client_socket.recv(1024).decode("UTF-8")
+        client_list.append(client_socket)
         nickname_list.append(nickname)
         print(f"Användarnamn för klient: {client_address} är: {nickname}")
 
@@ -54,6 +67,9 @@ def handle_client():
 
         recive_message_thread = threading.Thread(target=receive_message, args=(client_socket, nickname))
         recive_message_thread.start()
+    
+    except Exception as e:
+            print(f"Fel vid hantering av klient {e}")
 
 
 def receive_message(client_socket, nickname):
@@ -61,7 +77,7 @@ def receive_message(client_socket, nickname):
     Denna funktion är till för att ta emot meddelanden från klienterna.
     Jag använder mig av ett try block för att ta emot alla meddelanden och ifall klienten skickar QUIT så skall klienten samt deras användarnamn tas bort från respektive lista.
     Alla andra meddelanden som klienterna skickar kommer broadcastas till alla anslutna klienter.
-    Skulle det bli error så kommer Exception fånga upp det istället för att servern ska krasha.
+    Skulle det vara så att klientens anslutning avbryts av något skäl så kommer Exception fånga upp det och "kicka" klienten istället för att servern ska krascha.
     """
     while True:
         try:
@@ -73,10 +89,16 @@ def receive_message(client_socket, nickname):
                 client_socket.close()
                 print(f"{nickname} har lämnat chattrummet")
                 broadcast_message(f"{nickname} har lämnat chattrummet")
+                break
             else:
                 broadcast_message(f"{nickname}: {message_from_client}")
 
-        except Exception:
+        except (ConnectionResetError, ConnectionAbortedError):
+            client_list.remove(client_socket)
+            nickname_list.remove(nickname)
+            client_socket.close()
+            print(f"{nickname} har lämnat chattrummet")
+            broadcast_message(f"{nickname} har lämnat chattrummet")
             break
     
 
@@ -92,7 +114,4 @@ def broadcast_message(message_from_client):
             print("Fel vid sändning av meddelande")
             
             
-        
-    
-
-handle_client() #Anropar handle_client funktionen.
+accept_clients() #Anropar accept_clients funktionen.
